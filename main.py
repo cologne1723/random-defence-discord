@@ -26,10 +26,20 @@ async def on_ready():
 
 
 @bot.slash_command(name='daily', description='Force Release Daily Problem')
-async def daily(ctx: discord.ApplicationContext): await post_daily_prob(bot)
+async def daily(ctx: discord.ApplicationContext):
+    user = ctx.author
+    if 'admin' not in map(lambda x: x.name.lower(), user.roles):
+        await ctx.respond("You don't have permission to run command!")
+        return
+    await post_daily_prob(bot)
 
 @bot.slash_command(name='reminder', description='Force Reminder')
-async def reminder(ctx: discord.ApplicationContext): await post_reminder(bot)
+async def reminder(ctx: discord.ApplicationContext):
+    user = ctx.author
+    if 'admin' not in map(lambda x: x.name.lower(), user.roles):
+        await ctx.respond("You don't have permission to run command!")
+        return
+    await post_reminder(bot)
 
 bot.slash_command(
     name='register', description='Register / Update User Info')(register_user)
