@@ -1,5 +1,5 @@
 import datetime
-import sqlite3
+import pysqlite3 as sqlite3
 from typing import List, Tuple
 
 con = sqlite3.connect("qry.db")
@@ -51,7 +51,7 @@ def init():
 
 def findOrInsertQuery(query: str) -> int:
     cur.execute('''
-        INSERT INTO "Queries"(solvedquery) VALUES (?) ON CONFLICT(solvedquery) DO NOTHING;
+    INSERT INTO "Queries"(solvedquery) VALUES (?) ON CONFLICT(solvedquery) DO NOTHING;
     ''', [query])
     con.commit()
     res = cur.execute('''
