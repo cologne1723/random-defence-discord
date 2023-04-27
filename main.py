@@ -56,7 +56,7 @@ async def list(ctx: discord.ApplicationContext):
         ret.append(f'acmicpc.net: `{iid}`')
         ret.append(f'query: `{q}`')
         ret.append('')
-    await ctx.channel.send(content='\n'.join(ret))
+    await ctx.channel.send('\n'.join(ret))
 
 
 @tasks.loop(time=datetime.time(hour=21, minute=0, second=0, tzinfo=datetime.timezone.utc))
@@ -68,4 +68,5 @@ async def daily_reminder(): await post_reminder(bot)
 if __name__ == '__main__':
     dao.init()
     daily_post.start()
+    daily_reminder.start()
     bot.run(os.getenv('TOKEN'))  # run the bot with the token
