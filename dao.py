@@ -1,6 +1,6 @@
 import datetime
 import pysqlite3 as sqlite3
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 con = sqlite3.connect("qry.db")
 cur = con.cursor()
@@ -30,6 +30,7 @@ def init():
         "problemid"	INTEGER NOT NULL,
         "problemname" TEXT NOT NULL,
         "solved"	INTEGER NOT NULL,
+    	"rolled"	INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY("id" AUTOINCREMENT),
         FOREIGN KEY("messageid") REFERENCES "Messages"(id),
         FOREIGN KEY("userid") REFERENCES "Users"(id)
@@ -69,20 +70,32 @@ def fetchAllUser() -> List[Tuple[int, str, str]]:
     ''')
     return cur.fetchall()
 
+
+# Returns icpcid, solvedquery
+def getQueryOfUser(discordid: int) -> Optional[Tuple[str, str]]:
+    cur.execute('''
+        SELECT u.icpcid, q.solvedquery FROM "Users" u
+        INNER JOIN "Queries" q on q.id=u.queryid
+        WHERE u.discordid = ?
+    ''', [discordid])
+    x = cur.fetchall()
+    if len(x) == 0:
+        return None
+    return x[0]
+
+
 # Returns u.discordid, u.icpcid, q.solvedquery
-
-
 def fetchAllUserWithDiscordId() -> List[Tuple[str, str, str]]:
     cur.execute('''
         SELECT u.discordid, u.icpcid, q.solvedquery FROM "Users" u
-        INNER JOIN "Queries" q on q.id=u.queryid;
+        INNER JOIN "Queries" q on q.id=u.queryid
+        ORDER BY q.solvedquery DESC, u.icpcid ASC;
     ''')
     return cur.fetchall()
 
 
 def upsertUser(discordid: str, icpcid: str, query: str) -> None:
     queryId = findOrInsertQuery(query)
-    print(icpcid, discordid, queryId)
     cur.execute('''
         INSERT INTO "Users"(icpcid, discordid, queryid) VALUES (?, ?, ?)
         ON CONFLICT(discordid) DO UPDATE SET
@@ -91,12 +104,12 @@ def upsertUser(discordid: str, icpcid: str, query: str) -> None:
     ''', [icpcid, discordid, queryId])
     con.commit()
 
-# icpcid, problemid, problemname, solved
-
-
-def loadSolvedStatusFromDiscordMessageId(discordmessageid: int) -> List[Tuple[str, int, str, int]]:
+def loadSolvedStatusFromDiscordMessageId(discordmessageid: int) -> List[Tuple[str, int, str, int, int]]:
+    """
+    Returns icpcid, problemid, problemname, solved, rolled
+    """
     res = cur.execute('''
-        SELECT icpcid, problemid, problemname, solved from "Messages" m
+        SELECT icpcid, problemid, problemname, solved, rolled from "Messages" m
         JOIN "MessageProblems" mp ON m.id = mp.messageid
         JOIN "Users" u ON u.id = mp.userid
         WHERE m.messageid = ?
@@ -132,6 +145,44 @@ def updateSolvedStatus(mpid: int, solved: int):
         WHERE id = ?
     ''', [solved, mpid])
     con.commit()
+
+def setLastDefenceProblem(discordid: int, problemid: int, problemname: str, rolled: int):
+    res = cur.execute('''
+        SELECT id FROM "Messages"
+        ORDER BY timestamp DESC
+        LIMIT 1;
+    ''')
+    lastid = res.fetchone()[0]
+
+    res = cur.execute('''
+        SELECT mp.id FROM "MessageProblems" mp
+        INNER JOIN "Users" u ON u.id = mp.userid
+        WHERE mp.messageid = ? AND u.discordid = ?
+    ''', [lastid, discordid])
+    mpids = res.fetchall()
+
+    if len(mpids) == 0:
+        res = cur.execute('''
+            SELECT id FROM "Users" WHERE discordid = ?
+        ''', [discordid])
+        userid = res.fetchone()[0]
+        print(lastid, userid, problemid, problemname, 0)
+        cur.execute('''
+            INSERT INTO "MessageProblems"
+            (messageid, userid, problemid, problemname, solved, rolled)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', [lastid, userid, problemid, problemname, 0, rolled])
+    else:
+        mpid = mpids[0]
+        cur.execute('''
+            UPDATE "MessageProblems" SET
+            solved = 0,
+            problemid = ?,
+            problemname = ?,
+            rolled = ?
+            WHERE id = ?
+        ''', [problemid, problemname, rolled, mpid[0]])
+    con.commit()        
 
 
 def getLastMessageId() -> str:

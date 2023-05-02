@@ -6,12 +6,14 @@ import os  # default module
 from dotenv import load_dotenv
 
 from get_random_problem import get_random_problem
+from post_user_list import post_user_list
 from problem_view import ProblemView
 from register_user import register_user
 from post_daily_prob import post_daily_prob
 from post_reminder import post_reminder
 
 import dao
+from reroll_problem import reroll_problem
 
 
 load_dotenv()
@@ -33,6 +35,7 @@ async def daily(ctx: discord.ApplicationContext):
         return
     await post_daily_prob(bot)
 
+
 @bot.slash_command(name='reminder', description='Force Reminder')
 async def reminder(ctx: discord.ApplicationContext):
     user = ctx.author
@@ -43,24 +46,18 @@ async def reminder(ctx: discord.ApplicationContext):
 
 bot.slash_command(
     name='register', description='Register / Update User Info')(register_user)
-bot.slash_command(name='random', description='Select Random Problem!')(
-    get_random_problem)
+bot.slash_command(
+    name='random', description='Select Random Problem!')(get_random_problem)
+bot.slash_command(
+    name='list', description='Lists All User')(post_user_list)
 
-
-@bot.slash_command(name='list', description='Lists All User')
-async def list(ctx: discord.ApplicationContext):
-    ret = []
-    for did, iid, q in dao.fetchAllUserWithDiscordId():
-        u = await bot.fetch_user(did)
-        ret.append(f'Discord: `{u}`')
-        ret.append(f'acmicpc.net: `{iid}`')
-        ret.append(f'query: `{q}`')
-        ret.append('')
-    await ctx.channel.send('\n'.join(ret))
+bot.slash_command(
+    name='reroll', description='Reroll user problem')(reroll_problem)
 
 
 @tasks.loop(time=datetime.time(hour=21, minute=0, second=0, tzinfo=datetime.timezone.utc))
 async def daily_post(): await post_daily_prob(bot)
+
 
 @tasks.loop(time=datetime.time(hour=9, minute=0, second=0, tzinfo=datetime.timezone.utc))
 async def daily_reminder(): await post_reminder(bot)

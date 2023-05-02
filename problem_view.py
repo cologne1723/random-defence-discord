@@ -10,19 +10,40 @@ class ProblemView(discord.ui.View):
 
     @staticmethod
     async def reloadMessageFromDB(message=discord.Message):
-        embed = discord.Embed(
-            title="Today's Random Problem",
-            description='Here is a Problem For You!',
-            color=discord.Colour.green()
-        )
+        
+        
+        def new_embed(first: bool):
+            e = discord.Embed(
+                title="Today's Random Problem" if first else '',
+                description='Here is a Problem For You!' if first else '',
+                color=discord.Colour.green(),
+            )
+            return e
+        
         statuses = loadSolvedStatusFromDiscordMessageId(message.id)
-        for icpcid, problemid, problemname, solved in statuses:
+        cnt = 0
+
+        embeds = []
+        embed = new_embed(True)
+        for icpcid, problemid, problemname, solved, rolled in statuses:
             solved_emoji = [':white_large_square:', ':white_check_mark:',
                             ':arrows_counterclockwise:', ':sleeping_accommodation:'][solved]
+            rolled_emoji = ['', ':game_die:'][rolled]
+            problem_link = f'[**{problemid}** {problemname}](https://acmicpc.net/problem/{problemid})'
             embed.add_field(name=icpcid,
-                            value=f'{solved_emoji} [**{problemid}** {problemname}](https://acmicpc.net/problem/{problemid})',
-                            inline=False)
-        await message.edit(content='', embed=embed, view=ProblemView())
+                            value=f'{solved_emoji} {problem_link} {rolled_emoji}',
+                            inline=True)
+            cnt += 1
+            if cnt % 3 == 2:
+               cnt += 1
+               embed.add_field(name='\u200b', value='\u200b', inline=True)
+            if cnt >= 24:
+                cnt = 0
+                embeds.append(embed)
+                embed = new_embed(False)
+        if cnt != 0:
+            embeds.append(embed)
+        await message.edit(content='', embeds=embeds, view=ProblemView())
 
     @staticmethod
     async def check_expire(message: discord.Message):
