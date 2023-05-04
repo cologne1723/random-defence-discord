@@ -36,7 +36,6 @@ def init():
         FOREIGN KEY("userid") REFERENCES "Users"(id)
     )
     ''')
-
     cur.execute('''
     CREATE TABLE IF NOT EXISTS "Users" (
         "id"	INTEGER UNIQUE,
@@ -46,6 +45,29 @@ def init():
         PRIMARY KEY("id" AUTOINCREMENT),
         FOREIGN KEY("queryid") REFERENCES "Queries"(id)
     )
+    ''')
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS "QueryByDate" (
+        "id"	INTEGER NOT NULL,
+        "userid"	INTEGER NOT NULL,
+        "startDate"	TEXT NOT NULL,
+        "endDate"	TEXT NOT NULL,
+        "queryid"	INTEGER NOT NULL,
+        FOREIGN KEY("userid") REFERENCES "Users"("id"),
+        FOREIGN KEY("queryid") REFERENCES "Queries"("id"),
+        PRIMARY KEY("id")
+    )   
+    ''')
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS "QueryByDay" (
+        "id"	INTEGER NOT NULL,
+        "userid"	INTEGER NOT NULL,
+        "day"	INTEGER NOT NULL,
+        "queryid"	INTEGER NOT NULL,
+        FOREIGN KEY("userid") REFERENCES "Users"("id"),
+        FOREIGN KEY("queryid") REFERENCES "Queries"("id"),
+        PRIMARY KEY("id")
+    )   
     ''')
     con.commit()
 
@@ -60,15 +82,116 @@ def findOrInsertQuery(query: str) -> int:
     ''', [query])
     return res.fetchone()[0]
 
-# Returns u.id, u.icpcid, q.solvedquery
+
+def fetchAllDayQuery(discordid: int) -> List[Tuple[int, str]]:
+
+    res = cur.execute('''
+    SELECT qd.day, q.solvedquery FROM "queryByDay" qd
+    INNER JOIN "Queries" q on q.id=qd.queryid
+    INNER JOIN "Users" u on u.id=qd.userid
+    WHERE u.discordid = ?
+    ORDER BY qd.day ASC;
+    ''', [discordid])
+
+    return res.fetchall()
+
+
+def fetchAllDateQueryFrom(discordid: int, startDate: datetime.date) -> List[Tuple[str, str, str]]:
+    '''Returns startDate, endDate, querystring'''
+
+    res = cur.execute('''
+    SELECT qd.startDate, qd.endDate, q.solvedquery FROM "QueryByDate" qd
+    INNER JOIN "Queries" q on q.id=qd.queryid
+    INNER JOIN "Users" u on u.id=qd.userid
+    WHERE qd.endDate >= ? AND u.discordid = ?
+    ORDER BY startDate ASC;
+    ''', [startDate, discordid])
+
+    return res.fetchall()
+
+
+def addDayQuery(userid: int, day: int, query: str):
+    qid = findOrInsertQuery(query)
+    cur.execute('''
+        INSERT INTO "QueryByDay"(userid, day, queryid) 
+        VALUES (?, ?, ?);
+    ''', [userid, day, qid])
+    con.commit()
+
+
+def removeDayQuery(userid: int, day: int):
+    cur.execute(
+        'DELETE FROM "QueryByDay" WHERE userid = ? AND day = ?', [userid, day])
+    con.commit()
+
+
+def addDateQuery(userid: int, startDate: datetime.date, endDate: datetime.date, query: str):
+    qid = findOrInsertQuery(query)
+    cur.execute('''
+        INSERT INTO "QueryByDate"(userid, startDate, endDate, queryid) 
+        VALUES (?, ?, ?, ?);
+    ''', [userid, startDate.isoformat(), endDate.isoformat(), qid])
+    con.commit()
+
+
+def RemoveDateRangeQuery(userid: int, startDate: datetime.date, endDate: datetime.date):
+    sds, eds = startDate.isoformat(), endDate.isoformat()
+
+    res = cur.execute('''
+    SELECT id, userid, startDate, endDate, queryid FROM "QueryByDate"
+    WHERE NOT (endDate < ? OR startDate > ?);
+    ''', [sds, eds])
+
+    for i, userid, sd, ed, qid in res.fetchall():
+        if sds <= sd and ed <= eds:
+            cur.execute('DELETE FROM "QueryByDate" WHERE id = ?', [i])
+        elif sds > sd and ed <= eds:
+            cur.execute('''
+                UPDATE "QueryByDate" SET
+                endDate = ?
+                WHERE id = ?
+            ''', [(startDate-datetime.timedelta(days=1)).isoformat(), i])
+        elif sds <= sd and ed > eds:
+            cur.execute('''
+                UPDATE "QueryByDate" SET
+                startDate = ?
+                WHERE id = ?
+            ''', [(endDate+datetime.timedelta(days=1)).isoformat(), i])
+        else:
+            cur.execute('''
+                UPDATE "QueryByDate" SET
+                endDate = ?
+                WHERE id = ?
+            ''', [(startDate-datetime.timedelta(days=1)).isoformat(), i])
+            cur.execute('''
+                INSERT INTO "QueryByDate"(userid, startDate, endDate, queryid) 
+                VALUES (?, ?, ?, ?);
+            ''', [userid, (endDate+datetime.timedelta(days=1)).isoformat(), ed, qid])
+    con.commit()
 
 
 def fetchAllUser() -> List[Tuple[int, str, str]]:
+    '''Returns u.id, u.icpcid, q.solvedquery'''
     cur.execute('''
         SELECT u.id, u.icpcid, q.solvedquery FROM "Users" u
         INNER JOIN "Queries" q on q.id=u.queryid;
     ''')
     return cur.fetchall()
+
+def fetchAllQueriesForDate(d: datetime.date) -> List[Tuple[int, str, str]]:
+    '''Returns u.id, u.icpcid, q.solvedquery'''
+    
+    cur.execute('''
+        SELECT u.id, u.icpcid, q.solvedquery FROM Users u
+        LEFT OUTER JOIN QueryByDay qbdy
+        ON (qbdy.userid = u.id AND qbdy.day = ?)
+        LEFT OUTER JOIN QueryByDate qbdt
+        ON (qbdt.userid = u.id AND qbdt.startDate <= ? AND ? <= qbdt.endDate)
+        INNER JOIN Queries q ON (q.id = IFNULL(qbdt.queryid, IFNULL(qbdy.queryid, u.queryid)));
+    ''', [d.weekday(), d.isoformat(), d.isoformat()])
+    return cur.fetchall()
+
+
 
 
 # Returns icpcid, solvedquery
@@ -82,6 +205,16 @@ def getQueryOfUser(discordid: int) -> Optional[Tuple[str, str]]:
     if len(x) == 0:
         return None
     return x[0]
+
+
+def getDbIdOfUser(discordid: int) -> Optional[int]:
+    cur.execute('''
+        SELECT u.id FROM "Users" u WHERE u.discordid = ?
+    ''', [discordid])
+    x = cur.fetchall()
+    if len(x) == 0:
+        return None
+    return x[0][0]
 
 
 # Returns u.discordid, u.icpcid, q.solvedquery
@@ -103,6 +236,7 @@ def upsertUser(discordid: str, icpcid: str, query: str) -> None:
         queryid = excluded.queryid
     ''', [icpcid, discordid, queryId])
     con.commit()
+
 
 def loadSolvedStatusFromDiscordMessageId(discordmessageid: int) -> List[Tuple[str, int, str, int, int]]:
     """
@@ -146,6 +280,7 @@ def updateSolvedStatus(mpid: int, solved: int):
     ''', [solved, mpid])
     con.commit()
 
+
 def setLastDefenceProblem(discordid: int, problemid: int, problemname: str, rolled: int):
     res = cur.execute('''
         SELECT id FROM "Messages"
@@ -181,7 +316,7 @@ def setLastDefenceProblem(discordid: int, problemid: int, problemname: str, roll
             rolled = ?
             WHERE id = ?
         ''', [problemid, problemname, rolled, mpid[0]])
-    con.commit()        
+    con.commit()
 
 
 def getLastMessageId() -> str:

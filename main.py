@@ -11,9 +11,10 @@ from problem_view import ProblemView
 from register_user import register_user
 from post_daily_prob import post_daily_prob
 from post_reminder import post_reminder
+import date_query
+from reroll_problem import reroll_problem
 
 import dao
-from reroll_problem import reroll_problem
 
 
 load_dotenv()
@@ -52,6 +53,17 @@ bot.slash_command(
     name='list', description='Lists All User')(post_user_list)
 bot.slash_command(
     name='reroll', description='Reroll user problem')(reroll_problem)
+bot.slash_command(
+    name='show_user', description='Show user queries')(date_query.user_query)
+bot.slash_command(
+    name='clear_date_rule', description='Clear date specific rule')(date_query.clear_date_rule)
+bot.slash_command(
+    name='add_date_rule', description='Add date specific rule')(date_query.add_date_rule)
+bot.slash_command(
+    name='clear_day_rule', description='Clear day specific rule')(date_query.clear_day_rule)
+bot.slash_command(
+    name='add_day_rule', description='Add day specific rule')(date_query.add_day_rule)
+
 
 
 @tasks.loop(time=datetime.time(hour=21, minute=0, second=0, tzinfo=datetime.timezone.utc))

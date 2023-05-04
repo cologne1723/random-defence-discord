@@ -1,6 +1,8 @@
+import datetime
 import discord
+import pytz
 
-from dao import fetchAllUser, postMessage, addProblem
+from dao import fetchAllQueriesForDate, postMessage, addProblem
 from solved import selectProblemNo
 from problem_view import ProblemView
 
@@ -10,19 +12,23 @@ async def post_random_problems(channel: discord.TextChannel):
     message: discord.Message = await channel.send(content="Loading...")
     messagedbid = postMessage(message.id)
 
+    nd = (datetime.datetime.now(pytz.UTC) + datetime.timedelta(hours=3, minutes=1)).date()
     qdict = {}
-    users = fetchAllUser()
+    users = fetchAllQueriesForDate(nd)
     for userid, icpcid, query in users:
         if query not in qdict:
             qdict[query] = query
-        qdict[query] = qdict[query] + f' -@{icpcid}'
+        if query != '-':
+            qdict[query] = qdict[query] + f' -@{icpcid}'
 
     for k in qdict:
-        qdict[k] = selectProblemNo(qdict[k])
+        if k != '-':
+            qdict[k] = selectProblemNo(qdict[k])
+        else:
+            qdict[k] = None
 
     for userid, icpcid, query in sorted(users, key=lambda x: x[1]):
         prob = qdict[query]
         if prob is not None:
             addProblem(messagedbid, userid, prob.problemId, prob.problemName)
-
     await ProblemView.reloadMessageFromDB(message)
