@@ -31,11 +31,6 @@ def selectProblemNo(qry: str) -> Optional[ICPCProblem]:
     return ICPCProblem(J['items'][0]['problemId'], J['items'][0]['titleKo'])
 
 
-def checksolved(problemid: int, icpcid: str) -> bool:
-    print('Deferred.. switch to checklistsolved')
-    return selectProblemNo(f'id:{problemid} s@{icpcid}') is not None
-
-
 def checklistsolved(queries: List[Tuple[int, str]]) -> Mapping[Tuple[int, str], bool]:
     probmap: Mapping[int, List[str]] = {}
     ret: Mapping[Tuple[int, str], bool] = {}
@@ -46,7 +41,6 @@ def checklistsolved(queries: List[Tuple[int, str]]) -> Mapping[Tuple[int, str], 
 
     while True:
         qt = []
-        print(probmap)
         for k in probmap:
             if len(probmap[k]) > 0:
                 qt.append((k, probmap[k].pop()))
@@ -61,10 +55,7 @@ def checklistsolved(queries: List[Tuple[int, str]]) -> Mapping[Tuple[int, str], 
         for v in J['items']:
             s.add(int(v['problemId']))
 
-        print(qry, qs, s)
         for pid, iid in qt:
-            print(pid, s)
             ret[(pid, iid)] = (pid in s)
 
-    print(ret)
     return ret

@@ -166,7 +166,6 @@ def setLastDefenceProblem(discordid: int, problemid: int, problemname: str, roll
             SELECT id FROM "Users" WHERE discordid = ?
         ''', [discordid])
         userid = res.fetchone()[0]
-        print(lastid, userid, problemid, problemname, 0)
         cur.execute('''
             INSERT INTO "MessageProblems"
             (messageid, userid, problemid, problemname, solved, rolled)

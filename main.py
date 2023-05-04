@@ -50,7 +50,6 @@ bot.slash_command(
     name='random', description='Select Random Problem!')(get_random_problem)
 bot.slash_command(
     name='list', description='Lists All User')(post_user_list)
-
 bot.slash_command(
     name='reroll', description='Reroll user problem')(reroll_problem)
 
