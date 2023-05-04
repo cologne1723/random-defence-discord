@@ -11,14 +11,16 @@ async def user_query(ctx: discord.ApplicationContext,
     if res is None:
         await ctx.respond("User is not registered")
         return
-    icpcid, qry = res
+    handle, qry = res
     embed = discord.Embed(
         title=f'Data of User {user}',
         description='',
         color=discord.Colour.blue()
     )
 
-    embed.add_field(name='ICPC ID', value=f'{icpcid}', inline=False)
+    embed.add_field(name='acmicpc.net Handle',
+                    value=f'{handle} ([solved.ac](https://solved.ac/profile/{handle}), [acmicpc.net](https://www.acmicpc.net/user/{handle}))',
+                    inline=False)
     embed.add_field(name='Default Query', value=f'> `{qry}`', inline=False)
 
 
