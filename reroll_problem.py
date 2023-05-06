@@ -97,7 +97,7 @@ async def reroll_problem(ctx: discord.ApplicationContext,
         icpcid, query = iq
         query += f' -@{icpcid}'
 
-    prob = solved.selectProblemNo(query)
+    prob = await solved.selectProblemNo(query)
     messageid = int(getLastMessageId())
     chan = await ctx.bot.fetch_channel(os.getenv('PROBLEM_CHANNEL'))
     msg = await chan.fetch_message(messageid)

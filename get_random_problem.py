@@ -6,7 +6,7 @@ from solved import selectProblemNo
 async def get_random_problem(ctx: discord.ApplicationContext,
                              query: Option(str, "Random Problem Query")):
 
-    pno = selectProblemNo(query)
+    pno = await selectProblemNo(query)
     embed = discord.Embed(
         title='Random Problem Query',
         description='Here is a Problem For You!',

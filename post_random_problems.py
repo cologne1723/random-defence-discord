@@ -23,7 +23,7 @@ async def post_random_problems(channel: discord.TextChannel):
 
     for k in qdict:
         if k != '-':
-            qdict[k] = selectProblemNo(qdict[k])
+            qdict[k] = await selectProblemNo(qdict[k])
         else:
             qdict[k] = None
 

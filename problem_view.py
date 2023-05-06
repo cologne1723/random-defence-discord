@@ -75,7 +75,7 @@ class ProblemView(discord.ui.View):
         k = []
         for dbid, icpcid, problemid in pendings:
             k.append((problemid, icpcid))
-        r = checklistsolved(k)
+        r = await checklistsolved(k)
 
         for dbid, icpcid, problemid in pendings:
             solved = 1 if r[(problemid, icpcid)] else 0
