@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 
 import discord
@@ -73,8 +74,12 @@ async def daily_post(): await post_daily_prob(bot)
 @tasks.loop(time=datetime.time(hour=9, minute=0, second=0, tzinfo=datetime.timezone.utc))
 async def daily_reminder(): await post_reminder(bot)
 
-if __name__ == '__main__':
+async def main():
     dao.init()
     daily_post.start()
     daily_reminder.start()
-    bot.run(os.getenv('TOKEN'))  # run the bot with the token
+    await bot.start(os.getenv('TOKEN'))
+
+if __name__ == '__main__':
+    asyncio.run(main())
+
