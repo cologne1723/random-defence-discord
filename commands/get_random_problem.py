@@ -1,7 +1,7 @@
 import discord
 from discord.commands import Option
 
-from solved import selectProblemNo
+from api.solved import selectProblemNo
 
 async def get_random_problem(ctx: discord.ApplicationContext,
                              query: Option(str, "Random Problem Query")):

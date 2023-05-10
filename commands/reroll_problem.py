@@ -2,7 +2,7 @@ import os
 import discord
 from discord import Option, User
 from problem_view import ProblemView
-import solved
+import api.solved as solved
 
 from dao import getLastMessageId, getQueryOfUser, setLastDefenceProblem
 from typing import Optional

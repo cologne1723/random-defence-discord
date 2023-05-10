@@ -1,7 +1,7 @@
 import datetime
 import discord
 from dao import loadSolvedStatusFromDiscordMessageId, MakeUnsolvedProblemPending, getPendingProblems, updateSolvedStatus, setSolvedStatus
-from solved import checklistsolved
+from api.solved import checklistsolved
 
 
 class ProblemView(discord.ui.View):

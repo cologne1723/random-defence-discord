@@ -3,7 +3,7 @@ import discord
 import pytz
 
 from dao import fetchAllQueriesForDate, postMessage, addProblem
-from solved import selectProblemNo
+from api.solved import selectProblemNo
 from problem_view import ProblemView
 
 
