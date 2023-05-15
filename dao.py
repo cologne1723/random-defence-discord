@@ -139,8 +139,8 @@ def RemoveDateRangeQuery(userid: int, startDate: datetime.date, endDate: datetim
 
     res = cur.execute('''
     SELECT id, userid, startDate, endDate, queryid FROM "QueryByDate"
-    WHERE NOT (endDate < ? OR startDate > ?);
-    ''', [sds, eds])
+    WHERE (NOT (endDate < ? OR startDate > ?)) AND userid = ?;
+    ''', [sds, eds, userid])
 
     for i, userid, sd, ed, qid in res.fetchall():
         if sds <= sd and ed <= eds:
