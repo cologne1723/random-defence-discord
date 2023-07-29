@@ -1,7 +1,6 @@
 import datetime
 import discord
-from dao import loadSolvedStatusFromDiscordMessageId, MakeUnsolvedProblemPending, getPendingProblems, updateSolvedStatus, setSolvedStatus
-from api.solved import checklistsolved
+from db.base import DB
 
 
 class ProblemView(discord.ui.View):
@@ -10,8 +9,6 @@ class ProblemView(discord.ui.View):
 
     @staticmethod
     async def reloadMessageFromDB(message=discord.Message):
-        
-        
         def new_embed(first: bool):
             e = discord.Embed(
                 title="Today's Random Problem" if first else '',
@@ -19,9 +16,11 @@ class ProblemView(discord.ui.View):
                 color=discord.Colour.green(),
             )
             return e
-        
-        statuses = loadSolvedStatusFromDiscordMessageId(message.id)
-        cnt = 0
+
+        status = await DB.dailyproblem.find_many(include={
+            'user': True,
+            'DailyDiscordMessages': {'where': {'discordid': message.id}}
+        })
 
         embeds = []
         embed = new_embed(True)
@@ -35,8 +34,8 @@ class ProblemView(discord.ui.View):
                             inline=True)
             cnt += 1
             if cnt % 3 == 2:
-               cnt += 1
-               embed.add_field(name='\u200b', value='\u200b', inline=True)
+                cnt += 1
+                embed.add_field(name='\u200b', value='\u200b', inline=True)
             if cnt >= 24:
                 cnt = 0
                 embeds.append(embed)

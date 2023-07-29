@@ -1,15 +1,18 @@
 import asyncio
-from dataclasses import dataclass
+from collections import defaultdict
 import json
 import aiohttp
 from typing import Optional, Tuple, List, Mapping
+from marshmallow import EXCLUDE
+
+import marshmallow_dataclass
 
 from api.types import SolvedacApiResult, SolvedacProblem
 
-sess = aiohttp.ClientSession()
-
-async def solvedAcQuery(query: str, maxRetry: int = 5) -> SolvedacApiResult: 
+async def solvedacQuery(query: str, maxRetry: int = 5) -> SolvedacApiResult:
+    sess = aiohttp.ClientSession()
     async def returnJson() -> str:
+        nonlocal maxRetry
         timeout = 1
         while True:
             try:
@@ -26,41 +29,32 @@ async def solvedAcQuery(query: str, maxRetry: int = 5) -> SolvedacApiResult:
                     raise e
                 await asyncio.sleep(timeout)
                 timeout = min(1.5*timeout, 60)
-    
-    return SolvedacApiResult.Schema.from_dict(json.loads(await returnJson()))
-        
 
-async def selectProblemNo(qry: str) -> Optional[SolvedacProblem]:
-    res = await solvedAcQuery(qry)
+    schema = marshmallow_dataclass.class_schema(SolvedacApiResult)()
+    return schema.loads(await returnJson())
+
+async def selectRandomProblem(qry: str) -> Optional[SolvedacProblem]:
+    res = await solvedacQuery(qry)
     return res.items[0] if res.items else None
 
-
-
-async def checklistsolved(queries: List[Tuple[int, str]]) -> Mapping[Tuple[int, str], bool]:
-    probmap: Mapping[int, List[str]] = {}
-    ret: Mapping[Tuple[int, str], bool] = {}
-    for pid, iid in queries:
-        if pid not in probmap:
-            probmap[pid] = []
-        probmap[pid].append(iid)
+async def CheckSolved(queries: List[Tuple[int, str]]) -> Mapping[Tuple[int, str], bool]:
+    problemIdToUserIds: Mapping[int, List[str]] = defaultdict(list)
+    returnMapping:  Mapping[Tuple[int, str], bool] = {}
+    for problemId, userId in queries:
+        problemIdToUserIds[problemId].append(userId)
 
     while True:
-        qt = []
-        for k in probmap:
-            if len(probmap[k]) > 0:
-                qt.append((k, probmap[k].pop()))
-        if len(qt) == 0:
+        queryBuilder: List[Tuple[int, str]] = []
+        for problemId, userIds in problemIdToUserIds.items():
+            if userIds:
+                queryBuilder.append((problemId, userIds.pop()))
+        if not queryBuilder:
             break
-        qs = []
-        for pid, iid in qt:
-            qs.append(f'(id:{pid} @{iid})')
-        qry = '|'.join(qs)
-        J = await returnJson(qry)
-        s = set()
-        for v in J['items']:
-            s.add(int(v['problemId']))
 
-        for pid, iid in qt:
-            ret[(pid, iid)] = (pid in s)
+        queryString = '|'.join(f'(id:{problemId} @{userId})' for problemId, userId in queryBuilder)
+        remoteResult = await solvedacQuery(queryString)
+        solvedSet = set(problem.problemId for problem in  remoteResult.items)
+        for problemId, userId in queryBuilder:
+            returnMapping[(problemId, userId)] = problemId in solvedSet
 
-    return ret
+    return returnMapping

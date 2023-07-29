@@ -1,29 +1,38 @@
 import discord
 from discord.commands import Option
+from db.base import DB
+from helper.check_user import isAdmin
+from helper.make_embed import makeEmbedsFromDBUser
 
-import dao
+async def registerUser(ctx: discord.ApplicationContext,
+                       user: Option(discord.User, "Discord User", required=False),
+                       handle: Option(str, "solved.ac ID", required=False),
+                       reminderat: Option(int, "Reminder Timing (Default: 18)", min_value=0, max_value=23, required=False)):
 
-async def register_user(ctx: discord.ApplicationContext,
-                        user: Option(discord.User, "Discord User"),
-                        handle: Option(str, "acmicpc.net ID"),
-                        query: Option(str, "solved.ac query")):
-
-    request_user = ctx.author
-    if request_user != user and 'admin' not in map(lambda x: x.name.lower(), request_user.roles):
-        await ctx.respond("You don't have permission to run command!")
+    if user is None:
+        user = ctx.author
+    if user != ctx.author and not isAdmin(ctx.author):
+        await ctx.respond("You don't have permission to run command!", ephemeral=True)
         return
-    
-    dao.upsertUser(user.id, handle, query.strip())
-    embed = discord.Embed(
-        title='Updated Data',
-        description='',
-        color=discord.Colour.dark_red()
-    )
+    if handle is None and reminderat is None:
+        await ctx.respond("Specify at least one of `handle` or `reminderat`.", ephemeral=True)
+        return
 
-    embed.add_field(name='User',value=f'{user}', inline=False)
-    embed.add_field(name='acmicpc.net Handle',
-                    value=f'{handle} ([solved.ac](https://solved.ac/profile/{handle}), [acmicpc.net](https://www.acmicpc.net/user/{handle}))',
-                    inline=False)
-    embed.add_field(name='solved.ac Query', value=f'`{query}`', inline=False)
 
-    await ctx.respond("User Register/Update Succeeded!", embed=embed)
+    data = {'discordId': str(user.id)}
+    if handle is not None:
+        data['solvedId'] = handle
+    if reminderat is not None:
+        data['reminderAt'] = reminderat
+
+    result = await DB.user.find_first(where={'discordId': str(user.id)})
+    if result is None:
+        if handle is None:
+            await ctx.respond("`handle` required for new user registration.", ephemeral=True)
+            return
+        result = await DB.user.create(data=data)
+    else:
+        result = await DB.user.update(data=data, where={'id': result.id})
+
+    embeds = await makeEmbedsFromDBUser(ctx.bot, result)
+    await ctx.respond("User Register/Update Succeeded!", embeds=embeds)

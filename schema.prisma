@@ -1,0 +1,68 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// generator
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+model Channel {
+  id          Int    @id @default(autoincrement())
+  channelName String @unique
+  channelId   String
+}
+
+model DailyProblem {
+  id                     Int                  @id @default(autoincrement())
+  problemIdx             String
+  solvedacId             Int
+  problemName            String
+  user                   User                 @relation(fields: [userId], references: [id])
+  userId                 Int
+  DailyDiscordMessages   DailyDiscordMessages @relation(fields: [dailyDiscordMessagesId], references: [id])
+  dailyDiscordMessagesId Int
+}
+
+model DailyDiscordMessages {
+  id           Int            @id @default(autoincrement())
+  discordid    String
+  date         String
+  dailyProblem DailyProblem[]
+}
+
+model QueryRule {
+  id            Int     @id @default(autoincrement())
+  solvedacQuery String
+  overwrite     Boolean
+  startDate     String?
+  endDate       String?
+  onSunday      Boolean @default(true)
+  onMonday      Boolean @default(true)
+  onTuesday     Boolean @default(true)
+  onWednesday   Boolean @default(true)
+  onThursday    Boolean @default(true)
+  onFriday      Boolean @default(true)
+  onSaturday    Boolean @default(true)
+  probability   Float   @default(1.0)
+  queryRuleRank String
+  User          User    @relation(fields: [userId], references: [id])
+  userId        Int
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  solvedId     String         @unique
+  discordId    String         @unique
+  reminderAt   Int            @default(18)
+  QueryRule    QueryRule[]
+  DailyProblem DailyProblem[]
+}
+
+model WeeklyDiscordMessage {
+  id        Int    @id @default(autoincrement())
+  discordId String
+  date      String
+}
